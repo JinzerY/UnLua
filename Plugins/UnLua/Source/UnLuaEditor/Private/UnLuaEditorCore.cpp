@@ -12,130 +12,42 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
 
+#include "UnLuaEditorCore.h"
+#include "UnLuaInterface.h"
 #include "UnLuaPrivate.h"
-#include "Misc/FileHelper.h"
+#include "UnLuaSettings.h"
 #include "Engine/Blueprint.h"
 #include "Blueprint/UserWidget.h"
-#include "Animation/AnimInstance.h"
-#include "GameFramework/Actor.h"
-#include "Interfaces/IPluginManager.h"
 
-// copy dependency file to plugin's content dir
-static bool CopyDependencyFile(const TCHAR *FileName)
+ELuaBindingStatus GetBindingStatus(const UBlueprint* Blueprint)
 {
-    static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("UnLua"))->GetContentDir();
-    FString SrcFilePath = ContentDir / FileName;
-    FString DestFilePath = GLuaSrcFullPath / FileName;
-    bool bSuccess = IFileManager::Get().FileExists(*DestFilePath);
-    if (!bSuccess)
-    {
-        bSuccess = IFileManager::Get().FileExists(*SrcFilePath);
-        if (!bSuccess)
-        {
-            return false;
-        }
+    if (!Blueprint)
+        return ELuaBindingStatus::NotBound;
 
-        uint32 CopyResult = IFileManager::Get().Copy(*DestFilePath, *SrcFilePath, 1, true);
-        if (CopyResult != COPY_OK)
-        {
-            return false;
-        }
-    }
-    return true;
-}
+    if (Blueprint->Status == EBlueprintStatus::BS_Dirty)
+        return ELuaBindingStatus::Unknown;
 
-// create Lua template file for the selected blueprint
-bool CreateLuaTemplateFile(UBlueprint *Blueprint)
-{
-    if (Blueprint)
-    {
-        // copy dependency file first
-        if (!CopyDependencyFile(TEXT("UnLua.lua")))
-        {
-            return false;
-        }
+    const auto Target = Blueprint->GeneratedClass;
 
-        UClass *Class = Blueprint->GeneratedClass;
-        FString ClassName = Class->GetName();
+    if (!IsValid(Target))
+        return ELuaBindingStatus::NotBound;
 
-        FString Content;
-        Content += FString::Printf(TEXT("require \"UnLua\"\r\n\r\n"));
-        Content += FString::Printf(TEXT("local %s = Class()\r\n\r\n"), *ClassName);
-        Content += FString::Printf(TEXT("--function %s:Initialize(Initializer)\r\n"), *ClassName);
-        Content += FString::Printf(TEXT("--end\r\n\r\n"));
+    if (!Target->ImplementsInterface(UUnLuaInterface::StaticClass()))
+        return ELuaBindingStatus::NotBound;
 
-        if (Class->IsChildOf(AActor::StaticClass()))
-        {
-            // default BlueprintEvents for Actor
+    const auto Settings = GetDefault<UUnLuaSettings>();
+    if (!Settings || !Settings->ModuleLocatorClass)
+        return ELuaBindingStatus::Unknown;
 
-            Content += FString::Printf(TEXT("--function %s:UserConstructionScript()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
+    const auto ModuleLocator = Cast<ULuaModuleLocator>(Settings->ModuleLocatorClass->GetDefaultObject());
+    const auto ModuleName = ModuleLocator->Locate(Target);
+    if (ModuleName.IsEmpty())
+        return ELuaBindingStatus::Unknown;
 
-            Content += FString::Printf(TEXT("--function %s:ReceiveBeginPlay()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
+    const auto RelativePath = ModuleName.Replace(TEXT("."), TEXT("/")) + TEXT(".lua");
+    const auto FullPath = GLuaSrcFullPath + "/" + RelativePath;
+    if (!FPaths::FileExists(FullPath))
+        return ELuaBindingStatus::BoundButInvalid;
 
-            Content += FString::Printf(TEXT("--function %s:ReceiveEndPlay()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:ReceiveTick(DeltaSeconds)\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:ReceiveAnyDamage(Damage, DamageType, InstigatedBy, DamageCauser)\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:ReceiveActorBeginOverlap(OtherActor)\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:ReceiveActorEndOverlap(OtherActor)\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-        }
-        else if (Class->IsChildOf(UUserWidget::StaticClass()))
-        {
-            // default BlueprintEvents for UserWidget (UMG)
-
-            Content += FString::Printf(TEXT("--function %s:PreConstruct(IsDesignTime)\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:Construct()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:Tick(MyGeometry, InDeltaTime)\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-        }
-        else if (Class->IsChildOf(UAnimInstance::StaticClass()))
-        {
-            // default BlueprintEvents for AnimInstance (animation blueprint)
-
-            Content += FString::Printf(TEXT("--function %s:BlueprintInitializeAnimation()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:BlueprintBeginPlay()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:BlueprintUpdateAnimation(DeltaTimeX)\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:BlueprintPostEvaluateAnimation()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-        }
-        else if (Class->IsChildOf(UActorComponent::StaticClass()))
-        {
-            // default BlueprintEvents for ActorComponent
-
-            Content += FString::Printf(TEXT("--function %s:ReceiveBeginPlay()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:ReceiveEndPlay()\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-
-            Content += FString::Printf(TEXT("--function %s:ReceiveTick(DeltaSeconds)\r\n"), *ClassName);
-            Content += FString::Printf(TEXT("--end\r\n\r\n"));
-        }
-
-        Content += FString::Printf(TEXT("return %s\r\n"), *ClassName);
-
-        FString FileName = FString::Printf(TEXT("%s%s.lua"), *GLuaSrcFullPath, *ClassName);
-        return FFileHelper::SaveStringToFile(Content, *FileName);
-    }
-    return false;
+    return ELuaBindingStatus::Bound;
 }

@@ -13,11 +13,16 @@
 // See the License for the specific language governing permissions and limitations under the License.
 
 #include "DefaultParamCollection.h"
+#include "Misc/EngineVersionComparison.h"
 #include "CoreUObject.h"
 
 TMap<FName, FFunctionCollection> GDefaultParamCollection;
 
-#pragma optimize("", off)
+#if UE_VERSION_OLDER_THAN(5, 2, 0)
+PRAGMA_DISABLE_OPTIMIZATION
+#else
+UE_DISABLE_OPTIMIZATION
+#endif
 
 void CreateDefaultParamCollection()
 {
@@ -30,24 +35,8 @@ void CreateDefaultParamCollection()
     }
 }
 
-#pragma optimize("", on)
-
-void DestroyDefaultParamCollection()
-{
-    for (TMap<FName, FFunctionCollection>::TIterator FCIt(GDefaultParamCollection); FCIt; ++FCIt)
-    {
-        FFunctionCollection &FunctionCollection = FCIt.Value();
-        for (TMap<FName, FParameterCollection>::TIterator PCIt(FunctionCollection.Functions); PCIt; ++PCIt)
-        {
-            FParameterCollection &ParamCollection = PCIt.Value();
-            for (TMap<FName, IParamValue*>::TIterator PVIt(ParamCollection.Parameters); PVIt; ++PVIt)
-            {
-                IParamValue *ParamValue = PVIt.Value();
-                delete ParamValue;
-            }
-            ParamCollection.Parameters.Empty();
-        }
-        FunctionCollection.Functions.Empty();
-    }
-    GDefaultParamCollection.Empty();
-}
+#if UE_VERSION_OLDER_THAN(5, 2, 0)
+PRAGMA_ENABLE_OPTIMIZATION
+#else
+UE_ENABLE_OPTIMIZATION
+#endif

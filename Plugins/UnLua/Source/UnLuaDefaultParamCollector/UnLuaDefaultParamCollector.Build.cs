@@ -21,7 +21,11 @@ namespace UnrealBuildTool.Rules
     {
         public UnLuaDefaultParamCollector(ReadOnlyTargetRules Target) : base(Target)
         {
-            bEnforceIWYU = false;
+#if UE_5_2_OR_LATER
+        IWYUSupport = IWYUSupport.None;
+#else
+        bEnforceIWYU = false;
+#endif
 
             PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -35,6 +39,7 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePaths.AddRange(
                 new string[] {
                     "UnLuaDefaultParamCollector/Private",
+                    "UnLua/Private",
                 }
                 );
 

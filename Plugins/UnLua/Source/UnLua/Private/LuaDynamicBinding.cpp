@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and limitations under the License.
 
 #include "LuaDynamicBinding.h"
-#include "lua.hpp"
 
 FLuaDynamicBinding GLuaDynamicBinding;
 
@@ -23,24 +22,34 @@ bool FLuaDynamicBinding::IsValid(UClass *InClass) const
     return Class && Class == InClass && ModuleName.Len() > 0;
 }
 
-bool FLuaDynamicBinding::Setup(UClass *InClass, const TCHAR *InModuleName, int32 InInitializerTableRef)
+bool FLuaDynamicBinding::Push(UClass *InClass, const TCHAR *InModuleName, int32 InInitializerTableRef)
 {
-    if (!InClass || (Class && Class != InClass) || (ModuleName.Len() > 0 && ModuleName != InModuleName) || (!InModuleName && InInitializerTableRef == INDEX_NONE))
-    {
-        return false;
-    }
+    FLuaDynamicBindingStackNode StackNode;
+
+    StackNode.Class = Class;
+    StackNode.ModuleName = ModuleName;
+    StackNode.InitializerTableRef = InitializerTableRef;
+
+    Stack.Push(StackNode);
+
     Class = InClass;
     ModuleName = InModuleName;
     InitializerTableRef = InInitializerTableRef;
+
     return true;
 }
 
-int32 FLuaDynamicBinding::Cleanup()
+int32 FLuaDynamicBinding::Pop()
 {
-    Class = nullptr;
-    ModuleName.Empty();
+    check(Stack.Num() > 0);
+
+    FLuaDynamicBindingStackNode StackNode = Stack.Pop();
     int32 TableRef = InitializerTableRef;
-    InitializerTableRef = INDEX_NONE;
+
+    Class = StackNode.Class;
+    ModuleName = StackNode.ModuleName;
+    InitializerTableRef = StackNode.InitializerTableRef;
+
     return TableRef;
 }
 
@@ -49,7 +58,7 @@ FScopedLuaDynamicBinding::FScopedLuaDynamicBinding(lua_State *InL, UClass *Class
 {
     if (L)
     {
-        bValid = GLuaDynamicBinding.Setup(Class, ModuleName, InitializerTableRef);
+        bValid = GLuaDynamicBinding.Push(Class, ModuleName, InitializerTableRef);
     }
 }
 
@@ -57,8 +66,8 @@ FScopedLuaDynamicBinding::~FScopedLuaDynamicBinding()
 {
     if (bValid)
     {
-        int32 InitializerTableRef = GLuaDynamicBinding.Cleanup();
-        if (InitializerTableRef != INDEX_NONE)
+        int32 InitializerTableRef = GLuaDynamicBinding.Pop();
+        if (InitializerTableRef != LUA_NOREF)
         {
             check(L);
             luaL_unref(L, LUA_REGISTRYINDEX, InitializerTableRef);

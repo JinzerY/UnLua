@@ -1,20 +1,20 @@
-require "UnLua"
+---@type ABP_PlayerCharacter_C
+local M = UnLua.Class()
 
-local ABP_PlayerCharacter_C = Class()
-
-function ABP_PlayerCharacter_C:AnimNotify_NotifyPhysics()
-	UE4.UBPI_Interfaces_C.ChangeToRagdoll(self.Pawn)
+function M:AnimNotify_NotifyPhysics()
+	local BPI_Interfaces = UE.UClass.Load("/Game/Core/Blueprints/BPI_Interfaces.BPI_Interfaces_C")
+	BPI_Interfaces.ChangeToRagdoll(self.Pawn)
 end
 
-function ABP_PlayerCharacter_C:BlueprintBeginPlay()
-	self.Velocity = UE4.FVector()
-	self.ForwardVec = UE4.FVector()
-	self.RightVec = UE4.FVector()
-	self.ControlRot = UE4.FRotator()
+function M:BlueprintBeginPlay()
+	self.Velocity = UE.FVector()
+	self.ForwardVec = UE.FVector()
+	self.RightVec = UE.FVector()
+	self.ControlRot = UE.FRotator()
 	self.Pawn = self:TryGetPawnOwner()
 end
 
-function ABP_PlayerCharacter_C:BlueprintUpdateAnimation(DeltaTimeX)
+function M:BlueprintUpdateAnimation(DeltaTimeX)
 	local Pawn = self:TryGetPawnOwner(self.Pawn)
 	if not Pawn then
 		return
@@ -23,11 +23,12 @@ function ABP_PlayerCharacter_C:BlueprintUpdateAnimation(DeltaTimeX)
 	if not Vel then
 		return
 	end
-	local Character = Pawn:Cast(UE4.ABP_CharacterBase_C)
+	local BP_CharacterBase = UE.UClass.Load("/Game/Core/Blueprints/BP_CharacterBase.BP_CharacterBase_C")
+	local Character = Pawn:Cast(BP_CharacterBase)
 	if Character then
 		if Character.IsDead and not self.IsDead then
 			self.IsDead = true
-			self.DeathAnimIndex = UE4.UKismetMathLibrary.RandomIntegerInRange(0, 2)
+			self.DeathAnimIndex = UE.UKismetMathLibrary.RandomIntegerInRange(0, 2)
 		end
 	end
 	local Speed = Vel:Size()
@@ -40,7 +41,7 @@ function ABP_PlayerCharacter_C:BlueprintUpdateAnimation(DeltaTimeX)
 		local RightVec = Rot:GetRightVector(self.RightVec)
 		local DP0 = Vel:Dot(RightVec)
 		local DP1 = Vel:Dot(ForwardVec)
-		local Angle = UE4.UKismetMathLibrary.Acos(DP1)
+		local Angle = UE.UKismetMathLibrary.Acos(DP1)
 		if DP0 > 0.0 then
 			self.Direction = Angle
 		else
@@ -49,4 +50,4 @@ function ABP_PlayerCharacter_C:BlueprintUpdateAnimation(DeltaTimeX)
 	end
 end
 
-return ABP_PlayerCharacter_C
+return M

@@ -12,8 +12,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
 
-#include "CollisionHelper.h"
 #include "Engine/CollisionProfile.h"
+#include "CollisionHelper.h"
 
 TArray<FName> FCollisionHelper::ChannelNames;
 UEnum* FCollisionHelper::CollisionChannelEnum;
@@ -22,9 +22,9 @@ UEnum* FCollisionHelper::TraceTypeQueryEnum;
 
 void FCollisionHelper::Initialize()
 {
-    CollisionChannelEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ECollisionChannel"));
-    ObjectTypeQueryEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EObjectTypeQuery"));
-    TraceTypeQueryEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ETraceTypeQuery"));
+    CollisionChannelEnum = StaticEnum<ECollisionChannel>();
+    ObjectTypeQueryEnum = StaticEnum<EObjectTypeQuery>();
+    TraceTypeQueryEnum = StaticEnum<ETraceTypeQuery>();
     check(CollisionChannelEnum && ObjectTypeQueryEnum && TraceTypeQueryEnum);
 
     if (ChannelNames.Num() > 0)
@@ -48,6 +48,9 @@ void FCollisionHelper::Initialize()
 void FCollisionHelper::Cleanup()
 {
     ChannelNames.Empty();
+    CollisionChannelEnum = NULL;
+    ObjectTypeQueryEnum = NULL;
+    TraceTypeQueryEnum = NULL;
 }
 
 int32 FCollisionHelper::ConvertToCollisionChannel(FName Name)           // ECollisionChannel

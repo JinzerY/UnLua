@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CoreUObject.h"
+//#include "UnLuaCompatibility.h"
 #include "lua.hpp"
 
 #define MAX_LUA_VALUE_DEPTH 4
@@ -56,10 +56,10 @@ namespace UnLua
         UObjectBaseUtility* GetContainerObject(UStruct *Struct, void *ContainerPtr);
         void BuildFromUserdata(lua_State *L, int32 Index);
         void BuildFromUStruct(UStruct *Struct, void *ContainerPtr, UObjectBaseUtility *ContainerObject = nullptr);
-        void BuildFromTArray(FScriptArrayHelper &ArrayHelper, const UProperty *InnerProperty);
+        void BuildFromTArray(FScriptArrayHelper &ArrayHelper, const FProperty *InnerProperty);
         void BuildFromTMap(FScriptMapHelper &MapHelper);
         void BuildFromTSet(FScriptSetHelper &SetHelper);
-        void BuildFromUProperty(const UProperty *Property, void *ValuePtr);
+        void BuildFromUProperty(const FProperty *Property, void *ValuePtr);
     };
 
     /**
@@ -90,4 +90,6 @@ namespace UnLua
      */
     UNLUA_API FString GetLuaCallStack(lua_State *L);
 
+    /* 在IDE断点调试窗口中直接运行UnLua::PrintCallStack(L)来打印当前堆栈 */
+    void PrintCallStack(lua_State* L);
 } // namespace UnLua

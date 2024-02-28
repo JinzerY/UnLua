@@ -19,61 +19,78 @@ public class UnLuaEditor : ModuleRules
 {
     public UnLuaEditor(ReadOnlyTargetRules Target) : base(Target)
     {
+#if UE_5_2_OR_LATER
+        IWYUSupport = IWYUSupport.None;
+#else
         bEnforceIWYU = false;
+#endif
 
-        PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-        
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
         PublicIncludePaths.AddRange(
-            new string[] {
+            new string[]
+            {
             }
-            );
-                
-        
+        );
+
         string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
         PrivateIncludePaths.AddRange(
-            new string[] {
+            new[]
+            {
                 "UnLuaEditor/Private",
                 "UnLua/Private",
-                Path.Combine(EngineDir, @"Source/Editor/AnimationBlueprintEditor/Private"),
+                Path.Combine(EngineDir, "Source/Editor/AnimationBlueprintEditor/Private"),
+                Path.Combine(EngineDir, "Source/Runtime/Slate/Private"),
             }
-            );
-
+        );
 
         PrivateIncludePathModuleNames.AddRange(
-            new string[]
+            new[]
             {
                 "Kismet",
                 "MainFrame",
                 "AnimationBlueprintEditor",
+                "Slate",
+                "SlateCore",
                 "Persona",
             }
-            );
+        );
 
-        
         PrivateDependencyModuleNames.AddRange(
-            new string[]
+            new[]
             {
                 "Core",
                 "CoreUObject",
                 "Engine",
                 "UnrealEd",
+#if UE_5_0_OR_LATER
+                "DeveloperToolSettings",
+#endif
+                "EditorStyle",
+                "ApplicationCore",
                 "Projects",
                 "InputCore",
                 "UMG",
+                "UMGEditor",
+                "BlueprintGraph",
                 "Slate",
                 "SlateCore",
-                "UnLua"
+                "DirectoryWatcher",
+                "Networking",
+                "Sockets",
+                "UnLua",
+                "Lua",
+                "ToolMenus"
             }
-            );
-
+        );
 
         DynamicallyLoadedModuleNames.AddRange(
-            new string[]
+            new[]
             {
                 "Kismet",
                 "MainFrame",
                 "AnimationBlueprintEditor",
             }
-            );
+        );
     }
 }

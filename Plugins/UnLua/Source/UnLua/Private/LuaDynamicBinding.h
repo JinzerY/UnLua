@@ -14,22 +14,32 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CoreUObject.h"
+#include "lua.hpp"
 
 struct FLuaDynamicBinding
 {
     FLuaDynamicBinding()
-        : Class(nullptr), InitializerTableRef(INDEX_NONE)
+        : Class(nullptr), InitializerTableRef(LUA_NOREF)
     {}
 
     bool IsValid(UClass *InClass) const;
-    bool Setup(UClass *InClass, const TCHAR *InModuleName, int32 InInitializerTableRef);
-    int32 Cleanup();
 
     UClass *Class;
     FString ModuleName;
     int32 InitializerTableRef;
+
+    struct FLuaDynamicBindingStackNode
+    {
+        UClass *Class;
+        FString ModuleName;
+        int32 InitializerTableRef;
+    };
+
+    TArray<FLuaDynamicBindingStackNode> Stack;
+
+    bool Push(UClass *InClass, const TCHAR *InModuleName, int32 InInitializerTableRef);
+    int32 Pop();
 };
 
 extern FLuaDynamicBinding GLuaDynamicBinding;

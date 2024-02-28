@@ -15,27 +15,70 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UnLuaCompatibility.h"
 
 class IParamValue
 {
 public:
-    virtual ~IParamValue() {}
+    virtual ~IParamValue()
+    {
+    }
 
-    virtual const void* GetValue() const = 0;
+    virtual const void* GetValue() = 0;
 };
 
 template <typename T>
 class TParamValue : public IParamValue
 {
 public:
-    explicit TParamValue(const T &InValue)
+    explicit TParamValue(const T& InValue)
         : Value(InValue)
-    {}
+    {
+    }
 
-    virtual const void* GetValue() const override { return &Value; }
+    virtual const void* GetValue() override { return &Value; }
 
 private:
     T Value;
+};
+
+class FRuntimeEnumParamValue : public IParamValue
+{
+public:
+    explicit FRuntimeEnumParamValue(const FString& InCppType, int32 InIndex)
+        : bInitialized(false), TypeName(InCppType), Index(InIndex)
+    {
+    }
+
+    virtual const void* GetValue() override
+    {
+        if (!bInitialized)
+        {
+            UEnum* Enum = FindFirstObject<UEnum>(*TypeName);
+            Value = Enum->GetValueByIndex(Index);
+            bInitialized = true;
+        }
+        return &Value;
+    }
+
+private:
+    bool bInitialized;
+    FString TypeName;
+    int32 Index;
+    int64 Value;
+};
+
+class FScriptArrayParamValue : public IParamValue
+{
+public:
+    explicit FScriptArrayParamValue()
+    {
+    }
+
+    virtual const void* GetValue() override { return &Value; }
+
+private:
+    FScriptArray Value;
 };
 
 typedef TParamValue<bool> FBoolParamValue;
@@ -52,6 +95,8 @@ typedef TParamValue<FVector2D> FVector2DParamValue;
 typedef TParamValue<FRotator> FRotatorParamValue;
 typedef TParamValue<FLinearColor> FLinearColorParamValue;
 typedef TParamValue<FColor> FColorParamValue;
+typedef TParamValue<FScriptDelegate> FScriptDelegateParamValue;
+typedef TParamValue<FMulticastScriptDelegate> FMulticastScriptDelegateParamValue;
 
 struct FParameterCollection
 {
@@ -66,4 +111,3 @@ struct FFunctionCollection
 extern TMap<FName, FFunctionCollection> GDefaultParamCollection;
 
 extern void CreateDefaultParamCollection();
-extern void DestroyDefaultParamCollection();
